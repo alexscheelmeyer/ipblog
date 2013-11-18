@@ -1,0 +1,1 @@
+for making it easier to make a blog with express and footpl.

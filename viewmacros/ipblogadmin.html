@@ -1,0 +1,763 @@
+{% macro articlesTable(urlPrefix) %}
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Title</th>
+      <th>Summary</th>
+	  <th>Published</th>
+    </tr>
+  </thead>
+  <tbody>
+	{% each article in articles %}
+    <tr onclick="javascript:document.location='{# urlPrefix #}{# article.id #}';" style="cursor:pointer">
+      <td>{# loop.index #}</td>
+      <td>{# article.title #}</td>
+      <td>{# summarizeArticle(article.content) #} ...</td>
+	  <td>{% if article.published %}yes{% else %}no{% endif %}</td>
+    </tr>
+    {% endeach %}
+  </tbody>
+</table>
+
+{% endmacro %}
+
+
+{% macro pollsTable(pollUrlPrefix,voteUrlPrefix) %}
+
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Title</th>
+      <th>Published</th>
+	  <th>View stats</th>
+    </tr>
+  </thead>
+  <tbody>
+	{% each poll in polls %}
+    <tr onclick="javascript:document.location='{# pollUrlPrefix #}{# poll.id #}';" style="cursor:pointer">
+      <td>{# loop.index #}</td>
+      <td>{# poll.title #}</td>
+	  <td>{% if poll.published %}yes{% else %}no{% endif %}</td>
+	  <td><a href="{# voteUrlPrefix #}{# poll.id #}" class="btn">Stats</a>
+    </tr>
+    {% endeach %}
+  </tbody>
+</table>
+
+{% endmacro %}
+
+{% macro crudTabs(itemUrl) %}
+
+<script>
+
+  function setTabContents(table,pageIndex){
+    if(pageIndex===undefined)pageIndex=0;
+    $('.tab-pane.active tbody tr').remove();
+    $.ajax({
+	  type: 'GET',
+	  url: '/DBPage/'+table+'/'+pageIndex,
+      complete: function(xhr,status){
+        var html=[];
+        var res=xhr.responseJSON;
+        var page=res.page;
+        for(var i=0;i<page.length;i++){
+          var item=page[i];
+		  html.push('<tr onclick="javascript:document.location=\'{# itemUrl #}'+table+'/'+item.id+'\';" style="cursor:pointer"><td>'+item.index+'</td><td>'+item.id+'</td><td>'+item.title+'</td></tr>');
+		}
+        $('.tab-pane.active table > tbody:last').append(html.join('\n'));
+
+	    $('.tab-pane.active .pagination li').remove();
+
+        var disabledPrev=(pageIndex<=0 ? 'disabled' : '');
+        var hrefPrev=(pageIndex<=0 ? 'javascript:return false;' : 'javascript:setTabContents(\''+table+'\','+(pageIndex-1)+');');
+        $('.tab-pane.active .pagination ul').append('<li class="'+disabledPrev+'"><a href="'+hrefPrev+'">&laquo;</a></li>');
+
+        var numItems=res.count;
+        var pageSize=res.pageSize;
+        var numPages=Math.ceil(numItems/pageSize);
+        for(var p=0;p<numPages;p++){
+          var active=(p===pageIndex ? 'active' : ''); 
+          $('.tab-pane.active .pagination ul').append('<li class="'+active+'"><a href="javascript:setTabContents(\''+table+'\','+p+');">'+(p+1)+'</a></li>');
+        }
+
+        var disabledNext=(pageIndex>=(numPages-1) ? 'disabled' : '');
+        var hrefNext=(pageIndex>=(numPages-1) ? 'javascript:return false;' : 'javascript:setTabContents(\''+table+'\','+(pageIndex+1)+');');
+        $('.tab-pane.active .pagination ul').append('<li class="'+disabledNext+'"><a href="'+hrefNext+'">&raquo;</a></li>');
+      }
+	});
+
+  }
+
+  $(document).ready(function(){
+    $('.nav-tabs li a').each(function(){
+      $(this).click(function(e){
+        $(this).tab("show");
+	    setTabContents($(this).attr('href').substring(1));
+      });
+      
+    });
+
+	setTabContents('{# databases[0].name #}');
+
+  });
+
+</script>
+
+
+<ul class="nav nav-tabs">
+
+  {% each database in databases %}
+    {% if loop.index == 0 %}
+    <li class="active">
+    {% else %}
+    <li>
+    {% endif %}
+    <a href="#{# database.name #}" data-toggle="tab">{# database.name #}</a></li>
+  {% endeach %}
+
+</ul>
+
+<div class="tab-content">
+  {% each database in databases %}
+  <div class="tab-pane {% if loop.index == 0 %}active{% endif %}" id="{# database.name #}">
+	<table class="table table-striped">
+	  <thead>
+		<tr>
+		  <th>#</th>
+		  <th>Id</th>
+		  <th>Title</th>
+		</tr>
+	  </thead>
+	  <tbody>
+	  </tbody>
+	</table>
+
+	<div class="pagination">
+	  <ul>
+		<li><a href="#">Prev</a></li>
+		<li><a href="#">1</a></li>
+		<li><a href="#">2</a></li>
+		<li><a href="#">3</a></li>
+		<li><a href="#">4</a></li>
+		<li><a href="#">5</a></li>
+		<li><a href="#">Next</a></li>
+	  </ul>
+	</div>
+
+    <a href="{# itemUrl  #}{# database.name #}/new" class="btn btn-primary">Add new item</a>
+
+  </div>
+  {% endeach %}
+</div>
+
+
+{% endmacro %}
+
+
+{% macro editArticleHead(ckEditorPrefix,dropzonePrefix) %}
+<script src="{# ckEditorPrefix #}ckeditor.js"></script>
+<script src="{# dropzonePrefix #}dropzone.js"></script>
+<link rel="stylesheet" type="text/css" href="{# dropzonePrefix #}basic.css"></link>
+
+<script>
+
+function checkImages(callback){
+    var faulty='';
+    var images=$('img',CKEDITOR.instances.wysi.document.getBody().$);
+    images.each(function(index,elem){
+        var img=$(elem);
+        var src=img.attr('src');
+        var orgWidth=elem.naturalWidth;
+        var orgHeight=elem.naturalHeight;
+        var width=img.width();
+        var height=img.height();
+        if(Math.round((width/height)*10) != Math.round((orgWidth/orgHeight)*10)){
+             var asp=Math.round((width/height)*100)/100;
+             var orgAsp=Math.round((orgWidth/orgHeight)*100)/100;
+             faulty+='<div><img style="max-width:100px;max-height:100px" src="'+src+'"> has bad proportions, should have aspect '+orgAsp+' but has aspect '+asp+'</div>';
+        }
+    });
+
+    if(faulty.length===0){
+       callback(false,images);
+       return;
+    }
+
+    $('#errorModal .modal-body').html(faulty);
+    $('#errorModal').modal('show');
+    callback(true,images);
+}
+
+
+function saveScaled(images,callback){
+   var index=0;
+   function scaleImg(index,callback){
+      if(index<images.length){
+         var img=$(images[index]);
+         var src=img.attr('src');
+         var width=img.width();
+         var height=img.height();
+         var filename=src.replace(/^.*[\\\/]/, ''); //from here : http://stackoverflow.com/a/423385
+	     filename=filename.replace(/_scaled_/g,'');
+         var url='/scaleImage/'+filename+'?width='+width+'&height='+height;
+	     $.ajax({
+	        type: 'POST',
+	        url: url,
+	        data: {width:width,height:height},
+            complete: function(xhr,status){
+               if(status!=='success'){
+                  alert('could not scale');
+                  callback(true);
+               }
+               else{
+//                 var newSrc=xhr.responseText.match(/^.*[\\\/]/)[0];
+                 var newSrc=xhr.responseText;
+                 img.attr('src',newSrc);
+                 img.attr('data-cke-saved-src',newSrc);
+                 scaleImg(index+1,callback);
+               }
+            }
+	     });
+      }
+	  else callback(false);
+   }
+
+   scaleImg(0,callback);
+}
+
+//from here: http://stackoverflow.com/a/1584374
+function uniqueMerge(a,b){
+    for(var nonDuplicates = [],i = 0,l=b.length;i<l;++i){
+        if(a.indexOf(b[i])===-1){
+            nonDuplicates.push(b[i]);
+        }
+    }
+    return a.concat(nonDuplicates);
+};
+
+//extracts tags from comma separated string, then trims them and converts to lowercase
+function cleanTags(tagStr){
+   var tags=tagStr.split(',');
+   return tags.map(function(elem){return elem.toLowerCase().replace(/^\s+|\s+$/g,'');}).filter(function(elem){return elem.length>0});
+}
+
+function save(){
+    checkImages(function(err,contentImages){
+        if(err)return;
+
+        saveScaled(contentImages,function(err){
+           if(err)return;
+
+           var text=CKEDITOR.instances.wysi.getData();
+           var id=$('#id').val(); 
+           var title=$('#title').val();
+           if(title.length<=0){
+              alert('The article needs to have a title!');
+              return;
+           }
+           var trailingSpace=title[title.length-1]===' ';
+	       var leadingSpace=title[0]===' ';
+	       if(trailingSpace || leadingSpace){
+              alert('The title has leading or trailing spaces');
+              return;
+           }
+	       var url=$('#url').val();
+ 
+	       var articleImages=$('#images .articleImageUrl').map(function(index,elem){return elem.innerText.replace(/^.*[\\\/]/, '');}).toArray();
+           var uploadedImages=$('div#upload .imageurl').map(function(index, elem){return elem.innerText.replace(/^.*[\\\/]/, '');}).toArray();
+           contentImages=contentImages.map(function(i,e){return $(e).attr('src').replace(/^.*[\\\/]/, '').replace('_scaled_','');});
+           var images=uniqueMerge(articleImages,uploadedImages);
+           images=uniqueMerge(images,contentImages); 
+
+		   var titleImage=$('#titleImage .articleImage img').attr('src');
+           if(titleImage)titleImage=titleImage.replace(/^.*[\\\/]/, '');
+           else titleImage='';
+
+           var tags=cleanTags($('#tags').val());
+           var modifiers=cleanTags($('#modifiers').val());
+
+           var data={title:title, url:url, titleImage:titleImage, images:images, content:text, tags:tags, modifiers:modifiers, published: $('#publish-radio .active').attr('id')==='publish-yes'};
+	       $.ajax({
+	          type: 'POST',
+	          url: '/saveArticle'+((id.length>0) ? '/'+id : ''),
+	          data: data,
+              complete: function(xhr,status){
+                if(status!=='success')alert('could not save');
+                else{
+                   //from here : http://stackoverflow.com/q/12832317
+				   window.history.replaceState({},'', '/admin/article/'+xhr.responseText );
+				   $('#id').val(xhr.responseText);
+				   updatePreviewButton();
+				   //alert('saved');
+			    }
+              }
+	       });
+        });
+    });
+}
+
+function del(){
+    var id=$('#id').val(); 
+    if(id.length>0){
+       var really=confirm('Are you SURE you want to delete this article? There is no undo!');
+       if(really){
+	     $.ajax({
+	       type: 'POST',
+	       url: '/deleteArticle/'+id,
+           complete: function(xhr,status){if(status!=='success')alert('could not delete');else document.location='/admin';}
+	     });
+       }
+    }
+    else alert('cant delete unsaved article');
+}
+
+
+function doPreview(){
+	window.open('/'+$('#url').val());
+}
+
+function updatePreviewButton(){
+	if($('#id').val().length===0)
+	    $('#previewButton').attr('disabled','true');
+    else
+	    $('#previewButton').removeAttr('disabled');
+}
+
+$(document).ready(function(){
+    updatePreviewButton();
+	function title2url(title){
+		return title.replace(/\s/g,'-').replace(/–/g,'-');
+	}
+	$('#title').change(function(){
+		var title=$('#title').val();
+		$('#url').val(title2url(title));
+	});
+	if($('#url').val().length===0)$('#url').val(title2url($('#title').val()));
+});
+
+
+(function() {
+	var isChrome = /Chrome/.test(navigator.userAgent) && /Google Inc/.test(navigator.vendor);
+	if (isChrome) {
+	CKEDITOR.on( 'instanceLoaded', function( e ){
+	this.addCss('.cke_editable { line-height: normal; }');
+	});
+	}
+})();
+</script>
+
+<style>
+.wysiwyg {
+  overflow:scroll;
+  min-height:600px;
+  border:1px solid #777;
+}
+
+
+
+.articleImage {
+  padding-bottom: 10px;
+}
+
+.articleImage img {
+  max-height:100px;
+}
+
+.articleImageUrl {
+  padding:10px;
+}
+
+</style>
+
+{% endmacro %}
+
+
+{% macro editArticleForm() %}
+
+<div id="errorModal" class="modal hide fade" style="width:750px;margin-left:-375px">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3>Error</h3>
+  </div>
+  <div class="modal-body">
+  </div>
+  <div class="modal-footer">
+    <a href="#" data-dismiss="modal" class="btn">Cancel</a>
+<!--    <a href="#" id="savekey" class="btn btn-primary" onclick="setKey();return false;">Save</a>-->
+  </div>
+</div>
+
+
+<form>
+  <legend>Edit Article</legend>
+  <input type="hidden" id="id" value="{% if article %}{# article.id #}{% endif %}">
+  <label>Title</label>
+  <input type="text" id="title" placeholder="Article title" value="{% if article %}{# article.title #}{% endif %}">
+
+  <label>Url</label>
+  <input type="text" id="url" placeholder="Article url" value="{% if article %}{# article.url #}{% endif %}">
+
+  <label>Title Image</label>
+  <div id="titleImage">
+  {% if article && article.titleImage %}
+	<div class="articleImage"><img src="/images/{# article.titleImage #}"></div>  
+  {% else %}
+    <div class="articleImage">none</div>
+  {% endif %}
+  </div>
+
+  <label>Images</label>
+  <div id="images">
+	{% if article %}
+	{% each image in article.images %}
+	<div class="articleImage"><img src="/images/{# image #}" style="max-height:100px;cursor:pointer;" onclick="javascript:$('#titleImage .articleImage').html($('<img>').attr('src',$(this).attr('src')))"><span class="articleImageUrl">/images/{# image #}</span></div>
+	{% endeach %}
+	{% endif %}
+	<div id="upload" class="dropzone"></div>
+  </div>
+
+  <label>Tags</label>
+  <input type="text" id="tags" placeholder="Article tags" value="{% if article && article.tags %}{# article.tags.join(', ') #}{% endif %}">
+
+  <label>Modifiers</label>
+  <input type="text" id="modifiers" placeholder="Article modifiers" value="{% if article && article.modifiers %}{# article.modifiers.join(', ') #}{% endif %}">
+
+
+  <label>Content</label>
+  <textarea class="wysi" id="wysi" placeholder="Enter text ..." style="width: 100%; height: 500px">{% if article %}{# article.content #}{% endif %}</textarea>
+
+  <script>
+	//$('.wysi').wysihtml5();
+    //tinymce.init({plugins:"image",selector:'.wysi',height:400,menubar:false});
+	CKEDITOR.replace('wysi',{height:'500px'});
+
+	Dropzone.autoDiscover=false;
+	$(document).ready(function(){
+      var dz=new Dropzone("div#upload", { url: "/uploadimage"});
+	  dz.on("success", function(file, responseText) {
+          // Handle the responseText here. For example, add the text to the preview element:
+          file.previewTemplate.appendChild($('<span class="imageurl">'+responseText+'</span>')[0]);
+      });
+    });
+  </script>
+
+	<div id="publish-radio" class="btn-group" data-toggle="buttons-radio">
+	  {% if article && article.published %}
+	  <button id="publish-yes" type="button" class="btn active">Published</button>
+	  <button id="publish-no" type="button" class="btn">Not Published</button>
+	  {% else %}
+	  <button id="publish-yes" type="button" class="btn">Published</button>
+	  <button id="publish-no" type="button" class="btn active">Not Published</button>
+	  {% endif %}
+	</div>
+
+	<hr/>
+
+	<div style="width:100%">
+	  <a href="javascript:save();" class="btn btn-primary">Save</a>
+	  <button id="previewButton" onclick="doPreview();return false;" class="btn">Preview</button>
+
+	  <a href="javascript:del();" class="btn btn-danger pull-right">Delete Article</a>
+	</div>
+</form>
+
+
+{% endmacro %}
+
+
+{% macro editCrudItem(itemUrl,baseUrl) %}
+
+<script src="//tinymce.cachefly.net/4.0/tinymce.min.js"></script>
+
+<script>
+
+function save(){
+    var id=$('#id').val();
+    if(id===undefined){
+      alert('item needs to have an id!');
+      return;
+    } 
+    id=JSON.parse(id); 
+
+    var item={};
+    var success=true;
+    $('#crudform input').each(function(i,inp){
+       try{
+         var val=$(inp).val();
+         val=val.replace(/»/g,'\\"');
+         item[inp.id]=JSON.parse(val);
+       }
+       catch(e){
+         alert('Could not parse the "'+inp.id+'" key, did you forget quotes around a string?');
+         success=false;
+         return false;
+       }
+    });
+
+    if(success){
+	  $.ajax({
+	    type: 'POST',
+        url: '{# itemUrl #}{# table #}/'+id,
+	    data: {item:JSON.stringify(item)},
+        complete: function(xhr,status){if(status!=='success')alert('could not save');else document.location='{# baseUrl #}';}
+	  });
+    }
+}
+
+function del(){
+    var id=$('#id').val();
+    if(id===undefined){
+      alert('item needs to have an id!');
+      return;
+    } 
+    id=JSON.parse(id); 
+
+    var really=confirm('Are you SURE you want to delete this item? There is no undo!');
+    if(really){
+	  $.ajax({
+	    type: 'DELETE',
+	    url: '{# itemUrl #}{# table #}/'+id,
+        complete: function(xhr,status){if(status!=='success')alert('could not delete');else document.location='{# baseUrl #}';}
+	  });
+    }
+}
+
+function deleteKey(el){
+  var button=$(el);
+  var editButton=button.prev();
+  var input=editButton.prev();
+  var label=input.prev();
+  input.remove();
+  label.remove();
+  editButton.remove();
+  button.remove();
+}
+
+function addNewKey(){
+  var name=$('#keyname').val();
+
+  var editButton='<a href="#editModal" onclick="editWysi(this);"role="button" class="btn" data-toggle="modal" style="margin-bottom:10px">WYSIWYG edit</a>';
+  var delButton='<button onclick="deleteKey(this);return false;" class="btn btn-danger" style="margin-bottom:10px">Delete Key</button>';
+
+  $('#addPlace').before('<label>'+name+'</label>\n<input type="text" class="input-xxlarge" id="'+name+'" value="">\n'+editButton+delButton);
+  $('#addModal').modal('hide');
+  $('#'+name).focus();
+}
+
+function editWysi(elem){
+  editInput=$(elem).prev();
+  var val=editInput.val();
+  val=val.replace(/»/g,'&quot;');
+  var parsed=JSON.parse(val);
+  tinyMCE.activeEditor.setContent(parsed);
+}
+
+var editInput;
+function setKey(){
+  var val=tinyMCE.activeEditor.getContent();
+  editInput.val(JSON.stringify(val));
+  $('#editModal').modal('hide');
+}
+
+$(document).ready(function(){
+  $('#addModal').on('shown',function(){
+    $('#keyname').val('');
+    $('#keyname').focus()
+  });
+
+  $('#editModal').on('shown',function(){
+  });
+
+  $('#keyname').keyup(function(event){
+    if(event.keyCode===13){
+      $('#savekey').click();
+    }
+  });
+
+  tinymce.init({plugins:"image",selector:'.wysi',menubar:false});
+});
+
+</script>
+
+<div id="addModal" class="modal hide fade">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3>Add New Key</h3>
+  </div>
+  <div class="modal-body">
+    <label>Name of key</label>
+	<input type="text" id="keyname"></input>
+  </div>
+  <div class="modal-footer">
+    <a href="#" data-dismiss="modal" class="btn">Cancel</a>
+    <a href="#" id="savekey" class="btn btn-primary" onclick="addNewKey();return false;">Add key</a>
+  </div>
+</div>
+
+
+<div id="editModal" class="modal hide fade" style="width:750px;margin-left:-375px">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+    <h3>WYSIWYG Edit</h3>
+  </div>
+  <div class="modal-body">
+    <label>Text</label>
+	<textarea class="wysi" placeholder="Enter text ..." style="width: 100%; height: 300px"></textarea>
+  </div>
+  <div class="modal-footer">
+    <a href="#" data-dismiss="modal" class="btn">Cancel</a>
+    <a href="#" id="savekey" class="btn btn-primary" onclick="setKey();return false;">Save</a>
+  </div>
+</div>
+
+<form id="crudform">
+
+  {% each key in item %}
+  <label>{# loop.key #}</label>
+  {% set foo JSON.stringify(key) %}
+  {% set foo foo.replace(/&quot;/g,'&raquo;') %}
+  {% set foo2 foo.replace(/"/g,'&quot;') %}
+
+  <input type="text" class="input-xxlarge" id="{# loop.key #}" value="{# foo2 #}">
+  <a href="#editModal" onclick="editWysi(this);"role="button" class="btn" data-toggle="modal" style="margin-bottom:10px">WYSIWYG edit</a>
+  <button onclick="deleteKey(this);return false;" class="btn btn-danger" style="margin-bottom:10px">Delete Key</button>
+  {% endeach %}
+  
+  <div id="addPlace"></div>
+  <br/>
+  <a href="#addModal" role="button" class="btn" data-toggle="modal">Add new key</a>
+
+</form>
+
+
+{% endmacro %}
+
+{% macro editPollForm(savePollUrl,deletePollUrl) %}
+
+<script>
+
+function addAnswer(){
+  var num=$('#answers tr').length+1;
+  $('#answers > tbody:last').append('<tr><td><input type="text" id="answer'+num+'"><button class="btn btn-danger" onclick="deleteAnswer(this);return false;">Delete</button></td></tr>');
+}
+
+function deleteAnswer(button){
+  $(button).closest('tr').remove();
+}
+
+function save(){
+    var id=$('#id').val(); 
+
+    var answers=$('#answers input').map(function(index,answer){return $(answer).val();}).toArray();
+    var votes=$('#votes').val().split(',');
+    var title=$('#title').val();
+    if(title.length<=0){
+       alert('You have to give the poll a title');
+       return;
+    }
+    if((id.length>0)&&(answers.length!==votes.length)){
+        var really=confirm('You have changed the number of answers and will lose all votes for this poll, are you SURE?');
+        if(!really)return;
+    }
+  
+    var data={title:title, answers:answers, votes:$('#votes').val(), published: $('#publish-radio .active').attr('id')==='publish-yes'};
+	$.ajax({
+	  type: 'POST',
+	  url: savePollUrl+((id.length>0) ? '/'+id : ''),
+	  data: data,
+      complete: function(xhr,status){if(status!=='success')alert('could not save');else document.location='/admin/polls';}
+	});
+}
+
+function del(){
+    var id=$('#id').val(); 
+    if(id.length>0){
+       var really=confirm('Are you SURE you want to delete this poll? There is no undo!');
+       if(really){
+	     $.ajax({
+	       type: 'POST',
+	       url: deletePollUrl+id,
+           complete: function(xhr,status){if(status!=='success')alert('could not delete');else document.location='/admin/polls';}
+	     });
+       }
+    }
+    else alert('cant delete unsaved article');
+}
+
+</script>
+
+<form class="form-horizontal">
+  <legend>Edit Poll</legend>
+  <input type="hidden" id="id" value="{# poll.id #}">
+  <input type="hidden" id="votes" value="{# poll.votes #}">
+  <input type="hidden" id="oldpublished" value="{# poll.published #}">
+
+  <div class="control-group">
+	<label class="control-label">Title</label>
+	<div class="controls">
+	  <input type="text" class="input-xlarge" id="title" placeholder="Poll title" value="{# poll.title #}">
+	</div>
+  </div>
+
+  <div class="control-group">
+	<label class="control-label">Answers</label>
+	<div class="controls">
+	  <table id="answers">
+		<tbody>
+		{% if poll.answers %}
+		<tr>
+		  <td><input type="text" id="answer1" value="{# poll.answers[0] #}"></td>
+		</tr>
+		<tr>
+		  <td><input type="text" id="answer2" value="{# poll.answers[1] #}"></td>
+		</tr>
+		{% else %}
+		<tr>
+		  <td><input type="text" id="answer1" value=""></td>
+		</tr>
+		<tr>
+		  <td><input type="text" id="answer2" value=""></td>
+		</tr>
+		{% endif %}
+		{% each answer in poll.answers %}
+		  {% if loop.index1 > 2 %}
+		  <tr>
+			<td><input type="text" id="answer{# loop.index1 #}" value="{# answer #}"><button class="btn btn-danger" onclick="deleteAnswer(this);return false;">Delete</button></td>
+		  </tr>
+          {% endif %}
+		{% endeach %}
+		</tbody>
+	  </table>
+	</div>
+  </div>
+
+  <div class="control-group">
+	<div class="controls">
+	  <button class="btn" onclick="addAnswer();return false;" ><i class="icon-plus-sign"></i> Add new answer</button>
+	</div>
+  </div>
+
+  <div id="publish-radio" class="btn-group" data-toggle="buttons-radio">
+	{% if poll.published %}
+	<button id="publish-yes" type="button" class="btn active">Published</button>
+	<button id="publish-no" type="button" class="btn">Not Published</button>
+	{% else %}
+	<button id="publish-yes" type="button" class="btn">Published</button>
+	<button id="publish-no" type="button" class="btn active">Not Published</button>
+	{% endif %}
+  </div>
+
+  <hr/>
+
+  <div style="width:100%">
+	<a href="javascript:save();" class="btn btn-primary">Save</a>
+
+	<a href="javascript:del();" class="btn btn-danger pull-right">Delete Poll</a>
+  </div>
+</form>
+
+
+{% endmacro %}

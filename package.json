@@ -1,0 +1,17 @@
+{
+  "author": "Alex Scheel Meyer",
+  "name": "ipblog",
+  "description": "for easy blog setup using express and footpl",
+  "version": "0.1.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/alexscheelmeyer/ipblog.git"
+  },
+  "main": "ipblog.js",
+  "dependencies": {},
+  "devDependencies": {},
+  "optionalDependencies": {},
+  "engines": {
+    "node": "*"
+  }
+}

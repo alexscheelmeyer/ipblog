@@ -1,0 +1,219 @@
+{% macro tagsWidget(linkPrefix) %}
+  {% if tags %}
+    <div class="tags">
+      <h3>Tags</h3>
+      <nav>
+        <ul class="nav">
+          {% each tag in tags %}
+            <li><a href="{# linkPrefix #}{# tag.link #}" class="tag">{# tag.name #}</a></li>
+          {% endeach %}
+		</ul>
+      </nav>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{% macro pollWidget(postPath) %}
+  {% if poll %}
+	<script>
+	  function closest(tagName,elem){
+	    tagName=tagName.toUpperCase();
+	    var p=elem.parentNode;
+	    while(p){
+	      if(p.tagName===tagName)return p;
+	      p=p.parentNode;
+	    }
+	  }
+
+	  function setActive(elem){
+	    var tbl=closest('table',elem);
+	    for(var tb=0;tb<tbl.children.length;tb++){
+		   if(tbl.children[tb].tagName==='TBODY'){
+        	 for(var tr=0;tr<tbl.children[tb].children.length;tr++){
+               var row=tbl.children[tb].children[tr];
+  		       if(row.tagName==='TR'){
+                 row.className=row.className.replace(/\bactive\b/,'');
+               }
+             }
+           }
+		}
+
+		closest('tr',elem).className+='active';
+
+        /* jquery version excluded for speed 
+	    $('tr',$(elem).closest('table')).removeClass('active');
+	    $(elem).closest('tr').addClass('active')
+        */
+	  }
+
+	  function checkVote(){
+        var voteButtons=document.getElementsByName("vote");
+        var checked=false;
+        for(var v=0;v<voteButtons.length;v++){
+          if(voteButtons[v].checked==true)checked=true;
+        }
+
+	    if(!checked){
+	      alert('you must vote first!');
+	      return false;
+	    }
+        /* jquery version excluded for speed
+	    if($('input[name=vote]:checked', '.voteform').val()===undefined){
+	      alert('you must vote first!');
+	      return false;
+	    }
+        */
+	  }
+	</script>
+	<div class="vote">
+      <h3>Vote</h3>
+      <p>
+        {# poll.title #}
+      </p>
+      <form class="voteform" action="{# postPath #}" method="post">
+        <input type="hidden" name="id" value="{# poll.id #}"> 
+        <table width="100%">
+		  {% each answer in poll.answers %}
+		  <tr><td>
+			<input type="radio" class="voteradio" name="vote" value="a{# loop.index1 #}" onchange="setActive(this);"></input>
+		  </td><td>
+			<label class="votelabel" for="a{# loop.index1 #}">{#answer#}</label>
+		  </td></tr>
+		  {% endeach %}
+        </table>
+		<input type="submit" onclick="return checkVote();" value="Vote for this" />
+      </form>
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{% macro articlesSnippetList(thumbMapper) %}
+  {% each article in articles %}
+  {% if loop.first %}
+  <div class="first snippet">
+  {% else %}
+  <div class="snippet" style>
+  {% endif %}
+    <div class="snippet-image" style="background-image:url({# thumbMapper(article.titleImage) #});"></div>
+    <div class="snippet-meta">
+      <h2><a href="{# article.link #}">{# article.title #}</a></h2>
+      {# article.summary #}
+      <div>
+        <span class="postinfo">Posted on {# formatDate(article.publishDate) #} by {# article.authorName #}</span>
+      </div>
+    </div>
+    <div style="clear:both"></div>
+  </div>
+  {% endeach %}
+{% endmacro %}
+
+
+{% macro pagination(urlPrefix) %}
+
+<div class="pagination">
+<ul>
+  {% if pageIndex>0 %}
+  {% set prevPage pageIndex %}
+    {% if prevPage==1 %}
+      <li><a href="{# urlPrefix #}">&laquo;</a></li>
+    {% else %}
+      <li><a href="{# urlPrefix #}page{# prevPage #}">&laquo;</a></li>
+    {% endif %}
+  {% endif %}
+
+  {% each page in pagination %}
+    {% if loop.index == pageIndex %}
+      <li class="active"><a>{# page #}</a></li>
+    {% else %}
+	  {% if page==1 %}
+        <li><a href="{# urlPrefix #}">1</a></li>
+	  {% else %}
+        <li><a href="{# urlPrefix #}page{# page #}">{# page #}</a></li>
+      {% endif %}
+    {% endif %}
+  {% endeach %}
+
+  {% set numPages pagination.length %}
+  {% if pageIndex < (numPages-1) %}
+  {% set nextPage pageIndex+2 %}
+  <li><a href="{# urlPrefix #}page{# nextPage #}">&raquo;</a></li>
+  {% endif %}
+</ul>
+</div>
+
+{% endmacro %}
+
+
+{% macro pollStats() %}
+
+<script>
+var data={# JSON.stringify(poll.votes) #};
+var labels={# JSON.stringify(poll.answers) #};
+var chart=d3.select('#main').append('svg').attr('class','chart').attr('width',640).append("g").attr("transform", "translate(220,15)");
+
+var max=d3.max(data);
+var x = d3.scale.linear().domain([0,max]).range([0,420]);
+var y = d3.scale.ordinal().domain(d3.range(data.length)).rangeBands([0,120]);
+
+
+chart.selectAll("line")
+   .data(x.ticks(Math.min(max,10)))
+   .enter().append("line")
+     .attr("x1", x)
+     .attr("x2", x)
+     .attr("y1", 0)
+     .attr("y2", 120)
+     .style("stroke", "#ccc");
+
+chart.append("line")
+     .attr("y1", 0)
+     .attr("y2", 120)
+     .style("stroke", "#000");
+
+chart.selectAll("rect")
+  .data(data)
+  .enter().append("rect")
+  .attr("y", function(d,i){ return y(i); })
+  .attr("width", x)
+  .attr("height", y.rangeBand());
+
+chart.selectAll("text")
+   .data(data)
+   .enter().append("text")
+     .attr("x", x)
+     .attr("y", function(d,i) { return y(i) + y.rangeBand() / 2; })
+     .attr("dx", -3) // padding-right
+     .attr("dy", ".35em") // vertical-align: middle
+     .attr("text-anchor", "end") // text-align: right
+     .text(function(d){
+         return d;
+     });
+
+chart.selectAll(".rule")
+   .data(x.ticks(Math.min(max,10)))
+   .enter().append("text")
+     .attr("class", "rule")
+     .attr("x", x)
+     .attr("y", 0)
+     .attr("dy", -3)
+     .attr("text-anchor", "middle")
+     .text(String);
+
+chart.selectAll(".label")
+   .data(data)
+   .enter().append("text")
+     .attr("class","label")
+     .attr("x", 0)
+     .attr("y", function(d,i) { return y(i) + y.rangeBand() / 2; })
+     .attr("dx", -3) // padding-right
+     .attr("dy", ".35em") // vertical-align: middle
+     .attr("text-anchor", "end") // text-align: right
+     .text(function(d,i){
+         return labels[i];
+     });
+
+</script>
+
+{% endmacro %}

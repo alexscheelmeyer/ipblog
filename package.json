@@ -8,7 +8,7 @@
     "url": "git://github.com/alexscheelmeyer/ipblog.git"
   },
   "main": "ipblog.js",
-  "dependencies": {},
+  "dependencies": {"ipcommon":"latest","sightmap":"latest","nosql":"latest"},
   "devDependencies": {},
   "optionalDependencies": {},
   "engines": {

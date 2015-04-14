@@ -416,7 +416,7 @@ IPBlog.prototype.findPageByUrl=function(url,callback){
 IPBlog.prototype.findArticleByUrl=function(url,callback){
 	var self=this;
 	self.db.articles.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(articles){
-		if(articles.length>0){
+		if(articles && articles.length>0){
 			var article=articles[0];
 			var user=self.findUser(article.author);
 			article.authorName=user.fullName;

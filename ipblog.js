@@ -408,7 +408,7 @@ IPBlog.prototype.deletePoll=function(id,callback){
 IPBlog.prototype.findPageByUrl=function(url,callback){
 	var self=this;
 	self.db.pages.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(pages){
-		if(pages.length>0) callback(pages[0]);
+		if(pages && pages.length>0) callback(pages[0]);
 		else callback();
 	});
 }

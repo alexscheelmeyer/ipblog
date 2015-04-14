@@ -22,12 +22,14 @@ IPBlog.prototype.getDatabases=function(){
 
 IPBlog.prototype.getCurPoll=function(callback){
 	this.db.polls.all(function(){return true;},function(polls){
-		var curPoll;
-		for(var p=0;p<polls.length;p++){
-			var poll=polls[p];
-			if(poll.published){
-				curPoll=poll;
-				break;
+		var curPoll=null;
+		if(polls!==null){
+			for(var p=0;p<polls.length;p++){
+				var poll=polls[p];
+				if(poll.published){
+					curPoll=poll;
+					break;
+				}
 			}
 		}
 		
@@ -56,28 +58,31 @@ IPBlog.prototype.getArticlesPage=function(callback,page,pageSize){
 	var self=this;
 	var publishedArticles=[];
 	this.db.articles.all(function(){return true;},function(articles){
-		for(var a=0;a<articles.length;a++){
-			var article=articles[a];
-			if(article.published){
-				article.link='/'+article.url;
-				article.summary=summarize(article);
-				var user=self.findUser(article.author);
-				article.authorName=user.fullName;
-				article.authorLink=user.authorLink;
-				article.publishDate=new Date(article.publishDate);
-				publishedArticles.push(article);
+		var numArticles=0;
+		if(articles!==null){
+			for(var a=0;a<articles.length;a++){
+				var article=articles[a];
+				if(article.published){
+					article.link='/'+article.url;
+					article.summary=summarize(article);
+					var user=self.findUser(article.author);
+					article.authorName=user.fullName;
+					article.authorLink=user.authorLink;
+					article.publishDate=new Date(article.publishDate);
+					publishedArticles.push(article);
+				}
 			}
+			publishedArticles.sort(function(a,b){
+				return b.publishDate-a.publishDate;
+			});	
+			numArticles=publishedArticles.length;
+			publishedArticles=publishedArticles.filter(function(elem,index){
+				if((index>=(page*pageSize)) && (index<(page*pageSize+pageSize)))
+					return true;
+				else
+					return false;
+			});
 		}
-		publishedArticles.sort(function(a,b){
-			return b.publishDate-a.publishDate;
-		});	
-		var numArticles=publishedArticles.length;
-		publishedArticles=publishedArticles.filter(function(elem,index){
-			if((index>=(page*pageSize)) && (index<(page*pageSize+pageSize)))
-				return true;
-			else
-				return false;
-		});
 
 		callback(publishedArticles,numArticles,pageSize);
 	});
@@ -131,9 +136,11 @@ IPBlog.prototype.getTagsPage=function(callback,tagName,page,pageSize){
 
 IPBlog.prototype.getTags=function(callback){
 	this.db.tags.all(function(tag){return tag.kind==='tag';},function(tags){
-		for(var t=0;t<tags.length;t++){
-			tags[t].link=tags[t].name.replace(/\s/g,'-')+'/';
-			tags[t].name=ipcommon.string.toTitleCase(tags[t].name);
+		if(tags!==null){
+			for(var t=0;t<tags.length;t++){
+				tags[t].link=tags[t].name.replace(/\s/g,'-')+'/';
+				tags[t].name=ipcommon.string.toTitleCase(tags[t].name);
+			}
 		}
 		callback(tags);
 	});

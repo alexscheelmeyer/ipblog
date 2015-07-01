@@ -148,7 +148,7 @@ IPBlog.prototype.getTags=function(callback){
 
 
 IPBlog.prototype.vote=function(id,voteIndex,callback){
-	this.db.polls.update(function(err,doc){
+	this.db.polls.update(function(doc){
 		try{
 			if(doc.id===id){
 				doc.votes[voteIndex]++;
@@ -232,7 +232,7 @@ IPBlog.prototype.updateTags=function(category,tags,modifiers,article,callback){
 					}
 					else{
 						//console.log('updating',items);
-						self.db.tags.update(function(err,tag){
+						self.db.tags.update(function(tag){
 							if((tag!==undefined)&&(tag!==null)&&(tag.kind===kind)&&(tag.name===name)){
 								var found=false;
 								for(var a=0;a<tag.articles.length;a++){
@@ -321,7 +321,7 @@ IPBlog.prototype.updateTableItem=function(table,id,newItem,callback){
 	var self=this;
 	self.db[table].all(function(doc){if(doc.id===undefined)return false;return doc.id===id;},function(err,items){
 		if(items.length>0){
-			self.db[table].update(function(err,doc){
+			self.db[table].update(function(doc){
 				try {// if an exception happens the item will be deleted, we do not want that!
 					if(doc.id===id){
 						return newItem;
@@ -354,7 +354,7 @@ IPBlog.prototype.updateArticle=function(oldId,title,url,content,author,published
 				article.tags=tags;
 				article.modifiers=modifiers;
 				self.updateTags(undefined,article.tags,article.modifiers,article.id,function(){
-					self.db.articles.update(function(err,doc){
+					self.db.articles.update(function(doc){
 						if(doc.id===oldId){
 							return article;
 						}
@@ -390,7 +390,7 @@ IPBlog.prototype.deleteArticle=function(id,callback){
 
 IPBlog.prototype.updatePoll=function(oldId,poll,callback){
 	if(oldId){
-		this.db.polls.update(function(err,doc){
+		this.db.polls.update(function(doc){
 			if(doc.id===oldId)return poll;
 			return doc;
 		});

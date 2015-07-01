@@ -2,7 +2,7 @@
   "author": "Alex Scheel Meyer",
   "name": "ipblog",
   "description": "for easy blog setup using express and footpl",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "repository": {
     "type": "git",
     "url": "git://github.com/alexscheelmeyer/ipblog.git"

@@ -309,7 +309,7 @@ IPBlog.prototype.getTableItem=function(table,id,callback){
 
 
 IPBlog.prototype.deleteTableItem=function(table,id,callback){
-	this.db[table].update(function(err,doc){
+	this.db[table].update(function(doc){
 		if(doc.id===id)return null;
 		return doc;
 	});

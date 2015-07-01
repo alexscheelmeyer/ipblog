@@ -21,7 +21,7 @@ IPBlog.prototype.getDatabases=function(){
 }
 
 IPBlog.prototype.getCurPoll=function(callback){
-	this.db.polls.all(function(){return true;},function(polls){
+	this.db.polls.all(function(){return true;},function(err,polls){
 		var curPoll=null;
 		if(polls!==null){
 			for(var p=0;p<polls.length;p++){
@@ -57,7 +57,7 @@ IPBlog.prototype.getArticlesPage=function(callback,page,pageSize){
 
 	var self=this;
 	var publishedArticles=[];
-	this.db.articles.all(function(){return true;},function(articles){
+	this.db.articles.all(function(){return true;},function(err,articles){
 		var numArticles=0;
 		if(articles!==null){
 			for(var a=0;a<articles.length;a++){
@@ -94,14 +94,14 @@ IPBlog.prototype.getTagsPage=function(callback,tagName,page,pageSize){
 
 	var self=this;
 	console.log(arguments);
-	this.db.tags.one(function(tag){return (tag.kind==='tag') && (tag.name===tagName);},function(tag){
+	this.db.tags.one(function(tag){return (tag.kind==='tag') && (tag.name===tagName);},function(err,tag){
 		if(tag===null){
 			callback([],0,pageSize);
 			return;
 		};
 		console.log(tag);
 		var publishedArticles=[];
-		self.db.articles.all(function(){return true;},function(articles){
+		self.db.articles.all(function(){return true;},function(err,articles){
 			for(var a=0;a<articles.length;a++){
 				var article=articles[a];
 				if(article.published){
@@ -135,7 +135,7 @@ IPBlog.prototype.getTagsPage=function(callback,tagName,page,pageSize){
 }
 
 IPBlog.prototype.getTags=function(callback){
-	this.db.tags.all(function(tag){return tag.kind==='tag';},function(tags){
+	this.db.tags.all(function(tag){return tag.kind==='tag';},function(err,tags){
 		if(tags!==null){
 			for(var t=0;t<tags.length;t++){
 				tags[t].link=tags[t].name.replace(/\s/g,'-')+'/';
@@ -148,7 +148,7 @@ IPBlog.prototype.getTags=function(callback){
 
 
 IPBlog.prototype.vote=function(id,voteIndex,callback){
-	this.db.polls.update(function(doc){
+	this.db.polls.update(function(err,doc){
 		try{
 			if(doc.id===id){
 				doc.votes[voteIndex]++;
@@ -161,33 +161,33 @@ IPBlog.prototype.vote=function(id,voteIndex,callback){
 }
 
 IPBlog.prototype.getVote=function(id,callback){
-	this.db.polls.one(function(doc){return doc.id===id;},function(poll){
+	this.db.polls.one(function(doc){return doc.id===id;},function(err,poll){
 		callback(poll);
 	});
 }
 
 IPBlog.prototype.getArticles=function(callback){
-	this.db.articles.all(function(){return true;},function(articles){
+	this.db.articles.all(function(){return true;},function(err,articles){
 		callback(articles);
 	});
 }
 
 
 IPBlog.prototype.getPoll=function(id,callback){
-	this.db.polls.one(function(doc){return doc.id===id;},function(poll){
+	this.db.polls.one(function(doc){return doc.id===id;},function(err,poll){
 		callback(poll);
 	});
 }
 
 IPBlog.prototype.getPolls=function(callback){
-	this.db.polls.all(function(){return true;},function(polls){
+	this.db.polls.all(function(){return true;},function(err,polls){
 		callback(polls);
 	});
 }
 
 
 IPBlog.prototype.getArticle=function(id,callback){
-	this.db.articles.one(function(doc){return doc.id===id;},function(article){
+	this.db.articles.one(function(doc){return doc.id===id;},function(err,article){
 		callback(article);
 	});
 }
@@ -197,7 +197,7 @@ IPBlog.prototype.getDBPage=function(callback,table,page,pageSize){
 
 	var curIndex=0;
 	var indexLUT={};
-	this.db[table].all(function(item){
+	this.db[table].all(function(err,item){
 		curIndex++;
 		if((curIndex>=(page*pageSize+1)) && (curIndex<(page*pageSize+pageSize+1))){
 			indexLUT[item.id]=curIndex-1;
@@ -222,7 +222,7 @@ IPBlog.prototype.updateTags=function(category,tags,modifiers,article,callback){
 			else{
 				var name=list[index];
 				var tag=new Tag(kind,name);
-				self.db.tags.all(function(tag){return (tag.kind===kind)&&(tag.name===name);},function(items){
+				self.db.tags.all(function(tag){return (tag.kind===kind)&&(tag.name===name);},function(err,items){
 					if(items.length===0){
 						//console.log('inserting',tag);
 						var t=new Tag(kind,name);
@@ -232,7 +232,7 @@ IPBlog.prototype.updateTags=function(category,tags,modifiers,article,callback){
 					}
 					else{
 						//console.log('updating',items);
-						self.db.tags.update(function(tag){
+						self.db.tags.update(function(err,tag){
 							if((tag!==undefined)&&(tag!==null)&&(tag.kind===kind)&&(tag.name===name)){
 								var found=false;
 								for(var a=0;a<tag.articles.length;a++){
@@ -280,11 +280,11 @@ IPBlog.prototype.generateSitemap=function(baseUrl,callback){
 	var self=this;
 	var pagesMap=[{loc:baseUrl,changefreq:'daily'}];
 
-	self.db.pages.all(function(doc){return true;},function(pages){
+	self.db.pages.all(function(doc){return true;},function(err,pages){
 		for(var p=0;p<pages.length;p++){
 			pagesMap.push({loc:baseUrl+pages[p].url,changefreq:'monthly'});
 		}
-		self.db.articles.all(function(doc){return doc.published;},function(articles){
+		self.db.articles.all(function(doc){return doc.published;},function(err,articles){
 			for(var a=0;a<articles.length;a++){
 				pagesMap.push({loc:baseUrl+articles[a].url,changefreq:'weekly'});
 			}
@@ -302,14 +302,14 @@ IPBlog.prototype.generateSitemap=function(baseUrl,callback){
 }
 
 IPBlog.prototype.getTableItem=function(table,id,callback){
-	this.db[table].one(function(doc){return doc.id===id;},function(item){
+	this.db[table].one(function(doc){return doc.id===id;},function(err,item){
 		callback(item);
 	});
 }
 
 
 IPBlog.prototype.deleteTableItem=function(table,id,callback){
-	this.db[table].update(function(doc){
+	this.db[table].update(function(err,doc){
 		if(doc.id===id)return null;
 		return doc;
 	});
@@ -319,9 +319,9 @@ IPBlog.prototype.deleteTableItem=function(table,id,callback){
 
 IPBlog.prototype.updateTableItem=function(table,id,newItem,callback){
 	var self=this;
-	self.db[table].all(function(doc){if(doc.id===undefined)return false;return doc.id===id;},function(items){
+	self.db[table].all(function(doc){if(doc.id===undefined)return false;return doc.id===id;},function(err,items){
 		if(items.length>0){
-			self.db[table].update(function(doc){
+			self.db[table].update(function(err,doc){
 				try {// if an exception happens the item will be deleted, we do not want that!
 					if(doc.id===id){
 						return newItem;
@@ -342,7 +342,7 @@ IPBlog.prototype.updateTableItem=function(table,id,newItem,callback){
 IPBlog.prototype.updateArticle=function(oldId,title,url,content,author,published,images,titleImage,tags,modifiers,callback){
 	var self=this;
 	if(oldId){
-		self.db.articles.all(function(doc){if(doc.id===undefined)return false;return doc.id===oldId;},function(items){
+		self.db.articles.all(function(doc){if(doc.id===undefined)return false;return doc.id===oldId;},function(err,items){
 			if(items.length>0){
 				var publishDate=undefined;
 				var doc=items[0];
@@ -354,7 +354,7 @@ IPBlog.prototype.updateArticle=function(oldId,title,url,content,author,published
 				article.tags=tags;
 				article.modifiers=modifiers;
 				self.updateTags(undefined,article.tags,article.modifiers,article.id,function(){
-					self.db.articles.update(function(doc){
+					self.db.articles.update(function(err,doc){
 						if(doc.id===oldId){
 							return article;
 						}
@@ -390,7 +390,7 @@ IPBlog.prototype.deleteArticle=function(id,callback){
 
 IPBlog.prototype.updatePoll=function(oldId,poll,callback){
 	if(oldId){
-		this.db.polls.update(function(doc){
+		this.db.polls.update(function(err,doc){
 			if(doc.id===oldId)return poll;
 			return doc;
 		});
@@ -407,7 +407,7 @@ IPBlog.prototype.deletePoll=function(id,callback){
 
 IPBlog.prototype.findPageByUrl=function(url,callback){
 	var self=this;
-	self.db.pages.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(pages){
+	self.db.pages.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(err,pages){
 		if(pages && pages.length>0) callback(pages[0]);
 		else callback();
 	});
@@ -415,7 +415,7 @@ IPBlog.prototype.findPageByUrl=function(url,callback){
 
 IPBlog.prototype.findArticleByUrl=function(url,callback){
 	var self=this;
-	self.db.articles.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(articles){
+	self.db.articles.all(function(doc){if(doc.title===undefined)return false;return (doc.url===url);},function(err,articles){
 		if(articles && articles.length>0){
 			var article=articles[0];
 			var user=self.findUser(article.author);
